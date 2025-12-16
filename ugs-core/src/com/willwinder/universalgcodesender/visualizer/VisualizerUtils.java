@@ -82,14 +82,26 @@ public class VisualizerUtils {
     }
 
     /**
-     * Constructor to setup the GUI for this Component
+     * Reads a G-code file into an ArrayList with optimized memory allocation.
+     * Uses file size to estimate capacity and reduce array reallocations.
+     * 
+     * @param gCode path to the G-code file
+     * @return ArrayList containing all lines from the file
+     * @throws IOException if file cannot be read
+     * @deprecated Consider using {@link #readFileAsStream(String)} for better memory efficiency with large files
      */
     public static ArrayList<String> readFiletoArrayList(String gCode) throws IOException {
-        ArrayList<String> vect = new ArrayList<>();
         File gCodeFile = new File(gCode);
-        try (FileInputStream fstream = new FileInputStream(gCodeFile)) {
-            DataInputStream dis = new DataInputStream(fstream);
-            BufferedReader fileStream = new BufferedReader(new InputStreamReader(dis));
+        long fileSize = gCodeFile.length();
+        
+        // Estimate lines: average G-code line is ~30 bytes (including newline)
+        // Add 10% buffer to reduce likelihood of reallocation
+        int estimatedLines = (int) ((fileSize / 30) * 1.1);
+        ArrayList<String> vect = new ArrayList<>(Math.max(100, estimatedLines));
+        
+        try (FileInputStream fstream = new FileInputStream(gCodeFile);
+             InputStreamReader isr = new InputStreamReader(fstream);
+             BufferedReader fileStream = new BufferedReader(isr)) {
             String line;
             while ((line = fileStream.readLine()) != null) {
                 vect.add(line);
@@ -97,6 +109,44 @@ public class VisualizerUtils {
         }
 
         return vect;
+    }
+    
+    /**
+     * Reads a G-code file as a Stream for memory-efficient processing.
+     * This method is preferred for large files as it doesn't load the entire file into memory.
+     * 
+     * <p><b>Important:</b> The returned Stream must be closed after use, preferably in a try-with-resources block.
+     * 
+     * <p>Example usage:
+     * <pre>
+     * try (Stream&lt;String&gt; lines = VisualizerUtils.readFileAsStream(filePath)) {
+     *     lines.forEach(line -&gt; processLine(line));
+     * }
+     * </pre>
+     * 
+     * @param gCode path to the G-code file
+     * @return Stream of lines from the file
+     * @throws IOException if file cannot be read
+     * @since 2.0
+     */
+    public static java.util.stream.Stream<String> readFileAsStream(String gCode) throws IOException {
+        return java.nio.file.Files.lines(java.nio.file.Paths.get(gCode), java.nio.charset.StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * Creates a BufferedReader for a G-code file for manual line-by-line processing.
+     * Caller is responsible for closing the reader.
+     * 
+     * @param gCode path to the G-code file
+     * @return BufferedReader for the file
+     * @throws IOException if file cannot be opened
+     * @since 2.0
+     */
+    public static BufferedReader createFileReader(String gCode) throws IOException {
+        return java.nio.file.Files.newBufferedReader(
+            java.nio.file.Paths.get(gCode), 
+            java.nio.charset.StandardCharsets.UTF_8
+        );
     }
 
     /**
