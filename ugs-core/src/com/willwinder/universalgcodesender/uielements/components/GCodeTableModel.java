@@ -41,7 +41,9 @@ public class GCodeTableModel extends AbstractTableModel implements RemovalListen
             .removalListener(this)
             .build();
 
-    private final List<GcodeCommand> gcodeCommandList = new ArrayList<>();
+    // Pattern 2 Optimization: Pre-allocate with estimated capacity
+    // Typical files have hundreds to thousands of commands
+    private final List<GcodeCommand> gcodeCommandList = new ArrayList<>(1024);
 
     public GCodeTableModel() {
     }

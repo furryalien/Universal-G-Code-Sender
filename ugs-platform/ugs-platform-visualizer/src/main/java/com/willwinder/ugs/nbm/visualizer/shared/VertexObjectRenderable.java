@@ -19,9 +19,11 @@ import java.util.List;
 public abstract class VertexObjectRenderable extends Renderable {
     private double stepSize;
     private final IntBuffer bufferName = GLBuffers.newDirectIntBuffer(Buffer.MAX);
-    private final List<Float> vertexList = new ArrayList<>();
-    private final List<Float> normalList = new ArrayList<>();
-    private final List<Float> colorList = new ArrayList<>();
+    // Pattern 2 Optimization: Initial capacity hint to reduce reallocations
+    // Typical grid rendering needs ~1000+ vertices, pre-allocate to minimize resizing
+    private final List<Float> vertexList = new ArrayList<>(1024);
+    private final List<Float> normalList = new ArrayList<>(1024);
+    private final List<Float> colorList = new ArrayList<>(1024);
     private final Shader shader;
 
     private Position objectMin = Position.ZERO;

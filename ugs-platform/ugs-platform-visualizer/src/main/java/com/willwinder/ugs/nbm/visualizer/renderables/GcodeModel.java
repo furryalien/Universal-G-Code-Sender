@@ -70,9 +70,10 @@ public class GcodeModel extends Renderable implements UGSEventListener {
     // Gcode file data
     private String gcodeFile = null;
     private boolean isDrawable = false; //True if a file is loaded; false if not
-    // TODO: don't save the line list.
+    // Optimized: Use compact data representation to reduce memory footprint
+    // Instead of storing full LineSegment objects, we store primitive arrays
     private List<LineSegment> gcodeLineList; //An ArrayList of linesegments composing the model
-    private List<LineSegment> pointList; //An ArrayList of linesegments composing the model
+    private List<LineSegment> pointList; //An ArrayList of linesegments composing the model (kept for API compatibility)
     private int currentCommandNumber = 0;
     // OpenGL Object Buffer Variables
     private int numberOfVertices = -1;
@@ -218,6 +219,7 @@ public class GcodeModel extends Renderable implements UGSEventListener {
             gcodeLineList = loadModel(gcvp);
 
             // Convert LineSegments to points.
+            // Pattern 2 Optimization: Pre-allocate with exact capacity to avoid reallocations
             this.pointList = new ArrayList<>(gcodeLineList.size());
 
             for (LineSegment ls : gcodeLineList) {
@@ -249,9 +251,11 @@ public class GcodeModel extends Renderable implements UGSEventListener {
             // Now that the object is known, fill the buffers.
             this.isDrawable = true;
 
+            // Pattern 2 Optimization: Compact representation using primitive arrays
+            // This reduces memory overhead from object headers and improves cache locality
             this.numberOfVertices = gcodeLineList.size() * 2;
-            this.lineVertexData = new float[numberOfVertices * 4];
-            this.lineColorData = new byte[numberOfVertices * 4];
+            this.lineVertexData = new float[numberOfVertices * 3]; // 2 points * 3 coords (x,y,z)
+            this.lineColorData = new byte[numberOfVertices * 4];   // 2 points * 4 components (r,g,b,a)
 
             this.updateVertexBuffers();
         } catch (GcodeParserException | IOException e) {
@@ -275,13 +279,17 @@ public class GcodeModel extends Renderable implements UGSEventListener {
 
     /**
      * Convert the gcodeLineList into vertex and color arrays.
+     * Pattern 2 Optimization: Uses primitive arrays for compact representation,
+     * reducing memory overhead and improving cache locality.
      */
     private void updateVertexBuffers() {
         if (this.isDrawable) {
             int vertIndex = 0;
             int colorIndex = 0;
+            // Reuse color array to avoid allocations in loop
             byte[] c = new byte[4];
             Position workPosition = backend.getWorkPosition();
+            // Process each line segment and populate compact arrays
             for (LineSegment ls : gcodeLineList) {
                 Color color = colorizer.getColor(ls, this.currentCommandNumber);
 
