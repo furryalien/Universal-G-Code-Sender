@@ -57,6 +57,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -89,6 +90,11 @@ public class GUIBackend implements BackendAPI {
      * A temporary pointer to the active gcode stream. This is needed to make sure it is closed
      */
     private GcodeStreamReader gcodeStream;
+
+    /**
+     * Thread for the currently running file loading task (if any)
+     */
+    private Thread currentLoadingThread = null;
 
     public GUIBackend() {
         this(new UGSEventDispatcher());
@@ -148,8 +154,16 @@ public class GUIBackend implements BackendAPI {
      * * Comment lines are left
      */
     protected void preprocessAndExportToFile(GcodeParser gcp, File input, IGcodeWriter gcw) throws Exception {
+        preprocessAndExportToFile(gcp, input, gcw, null);
+    }
+
+    /**
+     * Special utility to loop over a gcode file and apply any modifications made by a gcode parser with progress reporting.
+     */
+    protected void preprocessAndExportToFile(GcodeParser gcp, File input, IGcodeWriter gcw, 
+                                            GcodeParserUtils.ProgressCallback progressCallback) throws Exception {
         logger.log(Level.INFO, "Preprocessing {0} to {1}", new Object[]{input.getCanonicalPath(), gcw.getCanonicalPath()});
-        GcodeParserUtils.processAndExport(gcp, input, gcw);
+        GcodeParserUtils.processAndExport(gcp, input, gcw, progressCallback);
     }
 
     private void initGcodeParser() {
@@ -375,14 +389,49 @@ public class GUIBackend implements BackendAPI {
     }
 
     private void processGcodeFile() throws Exception {
-        this.processedGcodeFile = null;
-
-        eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING));
-        initializeProcessedLines(true, this.gcodeFile, this.gcp);
-        if (this.processedGcodeFile != null) {
-            gcodeStream = new GcodeStreamReader(this.processedGcodeFile, getCommandCreator());
+        // Cancel any previous loading task
+        if (currentLoadingThread != null && currentLoadingThread.isAlive()) {
+            currentLoadingThread.interrupt();
+            // Give it a moment to stop
+            try {
+                currentLoadingThread.join(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
-        eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADED));
+
+        this.processedGcodeFile = null;
+        final File fileToProcess = this.gcodeFile;
+
+        // Send initial loading event
+        eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING));
+
+        // Process file asynchronously to avoid blocking UI
+        currentLoadingThread = new Thread(() -> {
+            try {
+                initializeProcessedLines(true, fileToProcess, this.gcp);
+                
+                if (this.processedGcodeFile != null) {
+                    gcodeStream = new GcodeStreamReader(this.processedGcodeFile, getCommandCreator());
+                }
+                
+                // Send loaded event on success
+                eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADED));
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error loading gcode file", e);
+                // Send error message to user
+                messageService.dispatchMessage(MessageType.ERROR, 
+                    Localization.getString("mainWindow.error.loadingFile") + ": " + e.getMessage());
+                // Reset file state
+                try {
+                    unsetGcodeFile();
+                } catch (Exception ex) {
+                    logger.log(Level.SEVERE, "Error resetting file state", ex);
+                }
+            }
+        }, "GCode-File-Loader");
+        currentLoadingThread.setDaemon(true);
+        currentLoadingThread.start();
     }
 
     @Override
@@ -466,6 +515,14 @@ public class GUIBackend implements BackendAPI {
 
     @Override
     public void setGcodeFile(File file) throws Exception {
+        // Validate file exists before starting async processing (for immediate feedback)
+        if (!file.exists()) {
+            throw new FileNotFoundException("File does not exist: " + file.getAbsolutePath());
+        }
+        if (!file.canRead()) {
+            throw new IOException("Cannot read file: " + file.getAbsolutePath());
+        }
+        
         unsetGcodeFile();
 
         logger.log(Level.INFO, "Setting gcode file. {0}", file.getAbsolutePath());
@@ -786,8 +843,17 @@ public class GUIBackend implements BackendAPI {
                 }
 
                 this.processedGcodeFile = new File(this.getTempDir(), name + "_ugs_" + System.currentTimeMillis());
+                
+                // Create progress callback that dispatches events
+                GcodeParserUtils.ProgressCallback progressCallback = (progress, currentLine) -> {
+                    eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING_PROGRESS, progress));
+                    if (progress % 10 == 0) { // Log every 10%
+                        logger.log(Level.INFO, "File loading progress: {0}% (line {1})", new Object[]{progress, currentLine});
+                    }
+                };
+                
                 try (IGcodeWriter gcw = new GcodeStreamWriter(this.processedGcodeFile)) {
-                    this.preprocessAndExportToFile(gcodeParser, startFile, gcw);
+                    this.preprocessAndExportToFile(gcodeParser, startFile, gcw, progressCallback);
                 }
 
                 // Store gcode file stats.

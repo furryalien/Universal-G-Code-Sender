@@ -64,6 +64,19 @@ public class GcodeParserUtils {
     private static final Logger LOGGER = Logger.getLogger(GcodeParserUtils.class.getName());
 
     /**
+     * Functional interface for progress callbacks during file processing
+     */
+    @FunctionalInterface
+    public interface ProgressCallback {
+        /**
+         * Called periodically during file processing
+         * @param progress Progress percentage (0-100)
+         * @param currentLine Current line number being processed
+         */
+        void progress(int progress, int currentLine);
+    }
+
+    /**
      * For backwards compatibility this method calls processCommand with includeNonMotionStates = false.
      */
     public static List<GcodeParser.GcodeMeta> processCommand(String command, int line, final GcodeState inputState)
@@ -371,23 +384,44 @@ public class GcodeParserUtils {
      */
     public static void processAndExport(GcodeParser gcp, File input, IGcodeWriter output)
             throws IOException, GcodeParserException {
+        processAndExport(gcp, input, output, null);
+    }
+
+    /**
+     * Process and export a gcode file with progress reporting
+     *
+     * @param gcp the gcode parser
+     * @param input input file
+     * @param output output writer
+     * @param progressCallback optional callback for progress updates (0-100%)
+     */
+    public static void processAndExport(GcodeParser gcp, File input, IGcodeWriter output, ProgressCallback progressCallback)
+            throws IOException, GcodeParserException {
+        long fileSize = input.length();
         try (InputStream inputStream = new FileInputStream(input)) {
-            if (processAndExportGcodeStream(gcp, inputStream, output)) {
+            if (processAndExportGcodeStream(gcp, inputStream, output, fileSize, progressCallback)) {
                 return;
             }
         }
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8.name()))) {
-            processAndExportText(gcp, br, output);
+            processAndExportText(gcp, br, output, fileSize, progressCallback);
         }
     }
 
     /**
      * Common logic in processAndExport* methods.
      */
-    private static void preprocessAndWrite(GcodeParser gcp, IGcodeWriter gsw, String command, String comment, int idx) throws GcodeParserException {
+    private static void preprocessAndWrite(GcodeParser gcp, IGcodeWriter gsw, String command, String comment, int idx, 
+                                          long bytesProcessed, long totalBytes, ProgressCallback progressCallback) throws GcodeParserException {
         if (idx % 100000 == 0) {
             LOGGER.log(Level.FINE, "gcode processing line: " + idx);
+        }
+
+        // Report progress every 1000 lines
+        if (progressCallback != null && idx % 1000 == 0 && totalBytes > 0) {
+            int progress = (int) Math.min(99, (bytesProcessed * 100 / totalBytes));
+            progressCallback.progress(progress, idx);
         }
 
         // Parse the gcode for the buffer.
@@ -405,16 +439,19 @@ public class GcodeParserUtils {
      *
      * @return whether or not we succeed processing the file.
      */
-    private static boolean processAndExportGcodeStream(GcodeParser gcp, InputStream input, IGcodeWriter output)
+    private static boolean processAndExportGcodeStream(GcodeParser gcp, InputStream input, IGcodeWriter output,
+                                                       long totalBytes, ProgressCallback progressCallback)
             throws IOException, GcodeParserException {
 
         // Preprocess a GcodeStream file.
         try (IGcodeStreamReader gsr = new GcodeStreamReader(input, new DefaultCommandCreator())) {
             int i = 0;
+            long totalLines = gsr.getNumRows();
             while (gsr.getNumRowsRemaining() > 0) {
                 i++;
                 GcodeCommand gc = gsr.getNextCommand();
-                preprocessAndWrite(gcp, output, gc.getCommandString(), gc.getComment(), i);
+                long bytesProcessed = totalLines > 0 ? (i * totalBytes / totalLines) : 0;
+                preprocessAndWrite(gcp, output, gc.getCommandString(), gc.getComment(), i, bytesProcessed, totalBytes, progressCallback);
             }
 
             // Done processing GcodeStream file.
@@ -430,16 +467,24 @@ public class GcodeParserUtils {
      *
      * @return whether or not we succeed processing the file.
      */
-    private static void processAndExportText(GcodeParser gcp, BufferedReader input, IGcodeWriter output)
+    private static void processAndExportText(GcodeParser gcp, BufferedReader input, IGcodeWriter output,
+                                            long totalBytes, ProgressCallback progressCallback)
             throws IOException, GcodeParserException {
         // Preprocess a regular gcode file.
         try (BufferedReader br = input) {
             int i = 0;
+            long bytesRead = 0;
             for (String line; (line = br.readLine()) != null; ) {
                 i++;
+                bytesRead += line.getBytes(StandardCharsets.UTF_8).length + 1; // +1 for newline
 
                 String comment = GcodePreprocessorUtils.parseComment(line);
-                preprocessAndWrite(gcp, output, line, comment, i);
+                preprocessAndWrite(gcp, output, line, comment, i, bytesRead, totalBytes, progressCallback);
+            }
+            
+            // Report 100% completion
+            if (progressCallback != null) {
+                progressCallback.progress(100, i);
             }
         }
     }

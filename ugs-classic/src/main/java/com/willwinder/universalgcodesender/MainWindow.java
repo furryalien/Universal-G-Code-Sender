@@ -29,6 +29,7 @@ import com.willwinder.universalgcodesender.listeners.MessageType;
 import com.willwinder.universalgcodesender.model.BaudRateEnum;
 import com.willwinder.universalgcodesender.model.UnitUtils;
 import com.willwinder.universalgcodesender.model.events.*;
+import com.willwinder.universalgcodesender.model.events.FileState;
 import com.willwinder.universalgcodesender.uielements.components.GcodeFileTypeFilter;
 import com.willwinder.universalgcodesender.uielements.macros.MacroActionPanel;
 import com.willwinder.universalgcodesender.uielements.panels.CommandPanel;
@@ -822,6 +823,13 @@ public class MainWindow extends JFrame implements UGSEventListener {
         fileModePanel.setMinimumSize(new java.awt.Dimension(389, 150));
         fileModePanel.setPreferredSize(new java.awt.Dimension(247, 258));
         fileModePanel.setLayout(new java.awt.GridBagLayout());
+        
+        // Initialize file loading progress components
+        fileLoadingProgressBar = new javax.swing.JProgressBar(0, 100);
+        fileLoadingProgressBar.setStringPainted(true);
+        fileLoadingProgressBar.setVisible(false);
+        fileLoadingLabel = new javax.swing.JLabel("");
+        fileLoadingLabel.setVisible(false);
 
         sendButton.setText("Send");
         sendButton.setEnabled(false);
@@ -997,6 +1005,26 @@ public class MainWindow extends JFrame implements UGSEventListener {
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         fileModePanel.add(fileRunPanel, gridBagConstraints);
+        
+        // Add loading label
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 3;
+        gridBagConstraints.gridwidth = 3;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 0, 5);
+        fileModePanel.add(fileLoadingLabel, gridBagConstraints);
+        
+        // Add progress bar
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 4;
+        gridBagConstraints.gridwidth = 3;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        gridBagConstraints.insets = new java.awt.Insets(2, 5, 5, 5);
+        fileModePanel.add(fileLoadingProgressBar, gridBagConstraints);
 
         settingsMenu.setText("Settings");
 
@@ -1765,8 +1793,22 @@ public class MainWindow extends JFrame implements UGSEventListener {
                     fileModePanel.setToolTipText(backend.getGcodeFile().getAbsolutePath());
                     processedGcodeFile = null;
                     gcodeFile = backend.getGcodeFile().getAbsolutePath();
+                    // Show loading UI
+                    fileLoadingLabel.setText("Loading file...");
+                    fileLoadingLabel.setVisible(true);
+                    fileLoadingProgressBar.setValue(0);
+                    fileLoadingProgressBar.setVisible(true);
+                    break;
+                case FILE_LOADING_PROGRESS:
+                    // Update progress bar
+                    int progress = fileStateEvent.getProgressPercent();
+                    fileLoadingProgressBar.setValue(progress);
+                    fileLoadingLabel.setText("Loading file... " + progress + "%");
                     break;
                 case FILE_LOADED:
+                    // Hide loading UI
+                    fileLoadingLabel.setVisible(false);
+                    fileLoadingProgressBar.setVisible(false);
                     processedGcodeFile = backend.getProcessedGcodeFile().getAbsolutePath();
                     if (commandTableScrollPane.isEnabled()) {
                         commandTable.clear();
@@ -1910,4 +1952,8 @@ public class MainWindow extends JFrame implements UGSEventListener {
     private javax.swing.JLabel workPositionZLabel;
     private javax.swing.JLabel workPositionZValueLabel;
     // End of variables declaration//GEN-END:variables
+    
+    // File loading progress components
+    private javax.swing.JProgressBar fileLoadingProgressBar;
+    private javax.swing.JLabel fileLoadingLabel;
 }

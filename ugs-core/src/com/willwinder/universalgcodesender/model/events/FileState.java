@@ -21,6 +21,7 @@ package com.willwinder.universalgcodesender.model.events;
 public enum FileState {
     OPENING_FILE,
     FILE_LOADING,
+    FILE_LOADING_PROGRESS,  // Used with FileStateEvent to report progress percentage
     FILE_LOADED,
     FILE_UNLOADED,
     FILE_STREAM_COMPLETE

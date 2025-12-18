@@ -475,16 +475,39 @@ public class GUIBackendTest {
 
         // When
         instance.setGcodeFile(tempFile);
+        
+        // Wait for async file loading to complete
+        waitForFileLoadingToComplete(instance, 5000);
+        
+        // Give a moment for all events to be dispatched
+        Thread.sleep(100);
 
         // Then
         List<UGSEvent> events = eventArgumentCaptor.getAllValues();
-        assertEquals(4, events.size());
+        // Now we expect progress events: OPENING_FILE, FILE_LOADING, FILE_LOADING_PROGRESS (multiple), SettingChangedEvent, FILE_LOADED
+        assertTrue("Should have at least 4 events", events.size() >= 4);
         assertEquals(FileState.OPENING_FILE, ((FileStateEvent) events.get(0)).getFileState());
         assertEquals(FileState.FILE_LOADING, ((FileStateEvent) events.get(1)).getFileState());
-        assertEquals(SettingChangedEvent.class, events.get(2).getClass());
-        assertEquals(FileState.FILE_LOADED, ((FileStateEvent) events.get(3)).getFileState());
+        
+        // Find the FILE_LOADED event (should be last)
+        FileStateEvent lastEvent = (FileStateEvent) events.get(events.size() - 1);
+        assertEquals(FileState.FILE_LOADED, lastEvent.getFileState());
 
         assertNotNull(instance.getProcessedGcodeFile());
+    }
+    
+    /**
+     * Helper method to wait for asynchronous file loading to complete
+     */
+    private void waitForFileLoadingToComplete(GUIBackend backend, long timeoutMs) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        while (backend.getProcessedGcodeFile() == null && 
+               (System.currentTimeMillis() - startTime) < timeoutMs) {
+            Thread.sleep(50);
+        }
+        if (backend.getProcessedGcodeFile() == null) {
+            fail("File loading did not complete within timeout");
+        }
     }
 
     @Test
@@ -495,6 +518,10 @@ public class GUIBackendTest {
         File tempFile = File.createTempFile("ugs-", ".gcode");
         FileUtils.writeStringToFile(tempFile, "G0 X0 Y0\n", StandardCharsets.UTF_8);
         instance.setGcodeFile(tempFile);
+        
+        // Wait for async file loading to complete
+        waitForFileLoadingToComplete(instance, 5000);
+        
         List<UGSEvent> preEvents = eventArgumentCaptor.getAllValues();
 
         // When

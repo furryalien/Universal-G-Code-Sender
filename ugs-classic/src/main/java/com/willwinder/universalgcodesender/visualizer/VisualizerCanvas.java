@@ -515,6 +515,10 @@ public class VisualizerCanvas extends GLCanvas implements GLEventListener, KeyLi
             this.createVertexBuffers();
             this.colorArrayDirty = true;
             this.vertexArrayDirty = true;
+            
+            // Request a repaint to ensure the model is rendered
+            // Use repaint() instead of display() since we may be on a background thread
+            javax.swing.SwingUtilities.invokeLater(() -> this.repaint());
         } catch (GcodeParserException | IOException | GcodeStreamReader.NotGcodeStreamFile e) {
             String error = Localization.getString("mainWindow.error.openingFile") + " : " + e.getLocalizedMessage();
             logger.log(Level.SEVERE, error, e);

@@ -26,20 +26,41 @@ import com.willwinder.universalgcodesender.model.UGSEvent;
  */
 public class FileStateEvent implements UGSEvent {
     private final FileState fileState;
+    private final int progressPercent;
 
     /**
      * Create a file state event
      * FILE_LOADING: This event provides a path to an unprocessed gcode file.
+     * FILE_LOADING_PROGRESS: This event reports loading progress (0-100%).
      * FILE_LOADED: This event provides a path to a processed gcode file which
      * should be opened with a GcodeStreamReader.
      *
      * @param state the new file state.
      */
     public FileStateEvent(FileState state) {
+        this(state, 0);
+    }
+
+    /**
+     * Create a file state event with progress information
+     *
+     * @param state the new file state
+     * @param progressPercent the progress percentage (0-100) for FILE_LOADING_PROGRESS
+     */
+    public FileStateEvent(FileState state, int progressPercent) {
         this.fileState = state;
+        this.progressPercent = Math.max(0, Math.min(100, progressPercent));
     }
 
     public FileState getFileState() {
         return fileState;
+    }
+
+    /**
+     * Get the loading progress percentage (0-100)
+     * Only meaningful for FILE_LOADING_PROGRESS events
+     */
+    public int getProgressPercent() {
+        return progressPercent;
     }
 }

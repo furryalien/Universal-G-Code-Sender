@@ -21,6 +21,7 @@ package com.willwinder.ugs.nbp.core.statusline;
 import com.willwinder.ugs.nbp.lib.lookup.CentralLookup;
 import com.willwinder.universalgcodesender.model.BackendAPI;
 import com.willwinder.universalgcodesender.model.UGSEvent;
+import com.willwinder.universalgcodesender.model.events.FileState;
 import com.willwinder.universalgcodesender.model.events.FileStateEvent;
 import org.openide.awt.StatusLineElementProvider;
 import org.openide.util.lookup.ServiceProvider;
@@ -57,8 +58,18 @@ public class LoadedFileStatusLineService implements StatusLineElementProvider {
     }
 
     private void onEvent(UGSEvent event) {
-        if (event instanceof FileStateEvent) {
-            updateText();
+        if (event instanceof FileStateEvent fileStateEvent) {
+            // Show progress during file loading
+            if (fileStateEvent.getFileState() == FileState.FILE_LOADING_PROGRESS) {
+                File file = this.backend.getGcodeFile();
+                if (file != null) {
+                    int progress = fileStateEvent.getProgressPercent();
+                    this.label.setText(file.getName() + " - Loading " + progress + "%");
+                    this.panel.setVisible(true);
+                }
+            } else {
+                updateText();
+            }
         }
     }
 
