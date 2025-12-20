@@ -360,7 +360,7 @@ public class GUIBackend implements BackendAPI {
     }
 
     private File getTempDir() {
-        if (tempDir == null) {
+        if (tempDir == null || !tempDir.exists()) {
             tempDir = Files.createTempDir();
         }
         return tempDir;
@@ -412,11 +412,16 @@ public class GUIBackend implements BackendAPI {
                 initializeProcessedLines(true, fileToProcess, this.gcp);
                 
                 if (this.processedGcodeFile != null) {
+                    // Verify file exists and is readable before creating stream reader
+                    if (!this.processedGcodeFile.exists() || !this.processedGcodeFile.canRead()) {
+                        throw new IOException("Processed gcode file is not accessible: " + this.processedGcodeFile);
+                    }
                     gcodeStream = new GcodeStreamReader(this.processedGcodeFile, getCommandCreator());
                 }
                 
-                // Send loaded event on success
-                eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADED));
+                // Send loaded event with final row count
+                long finalRowCount = gcodeStream != null ? gcodeStream.getNumRows() : 0;
+                eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADED, 100, finalRowCount));
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "Error loading gcode file", e);
                 // Send error message to user
@@ -844,9 +849,15 @@ public class GUIBackend implements BackendAPI {
 
                 this.processedGcodeFile = new File(this.getTempDir(), name + "_ugs_" + System.currentTimeMillis());
                 
+                // Ensure parent directory exists
+                File parentDir = this.processedGcodeFile.getParentFile();
+                if (parentDir != null && !parentDir.exists()) {
+                    parentDir.mkdirs();
+                }
+                
                 // Create progress callback that dispatches events
                 GcodeParserUtils.ProgressCallback progressCallback = (progress, currentLine) -> {
-                    eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING_PROGRESS, progress));
+                    eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING_PROGRESS, progress, currentLine));
                     if (progress % 10 == 0) { // Log every 10%
                         logger.log(Level.INFO, "File loading progress: {0}% (line {1})", new Object[]{progress, currentLine});
                     }

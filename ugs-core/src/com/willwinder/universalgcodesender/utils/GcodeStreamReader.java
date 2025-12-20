@@ -50,6 +50,7 @@ public class GcodeStreamReader implements IGcodeStreamReader {
     private final BufferedReader reader;
     private final int numRows;
     private int numRowsRemaining;
+    private int currentLineNumber = 0;
 
     public static class NotGcodeStreamFile extends Exception {}
 
@@ -98,10 +99,11 @@ public class GcodeStreamReader implements IGcodeStreamReader {
     public GcodeCommand getNextCommand() throws IOException {
         if (numRowsRemaining == 0) return null;
 
+        currentLineNumber++;
         String line = reader.readLine();
         String[] nextLine = parseLine(line);
         if (nextLine.length != NUM_COLUMNS) {
-            throw new IOException("Corrupt data found while processing gcode stream: " + line);
+            throw new IOException("Corrupt data found at line " + currentLineNumber + " while processing gcode stream: " + line);
         }
         numRowsRemaining--;
         return commandCreator.createCommand(

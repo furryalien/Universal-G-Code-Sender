@@ -1800,10 +1800,13 @@ public class MainWindow extends JFrame implements UGSEventListener {
                     fileLoadingProgressBar.setVisible(true);
                     break;
                 case FILE_LOADING_PROGRESS:
-                    // Update progress bar
+                    // Update progress bar and row count
                     int progress = fileStateEvent.getProgressPercent();
                     fileLoadingProgressBar.setValue(progress);
                     fileLoadingLabel.setText("Loading file... " + progress + "%");
+                    // Update row count as file is being loaded
+                    long rowCount = fileStateEvent.getRowCount();
+                    rowsValueLabel.setText(String.valueOf(rowCount));
                     break;
                 case FILE_LOADED:
                     // Hide loading UI
@@ -1813,9 +1816,15 @@ public class MainWindow extends JFrame implements UGSEventListener {
                     if (commandTableScrollPane.isEnabled()) {
                         commandTable.clear();
                     }
-                    try (IGcodeStreamReader gsr = new GcodeStreamReader(backend.getProcessedGcodeFile(), new DefaultCommandCreator())) {
-                        resetSentRowLabels(gsr.getNumRows());
-                    } catch (IOException | GcodeStreamReader.NotGcodeStreamFile ex) {}
+                    // Use row count from event if available, otherwise read from file
+                    long finalRowCount = fileStateEvent.getRowCount();
+                    if (finalRowCount > 0) {
+                        resetSentRowLabels(finalRowCount);
+                    } else {
+                        try (IGcodeStreamReader gsr = new GcodeStreamReader(backend.getProcessedGcodeFile(), new DefaultCommandCreator())) {
+                            resetSentRowLabels(gsr.getNumRows());
+                        } catch (IOException | GcodeStreamReader.NotGcodeStreamFile ex) {}
+                    }
                     break;
                 case FILE_STREAM_COMPLETE:
                     remainingTimeValueLabel.setText(Utils.formattedMillis(0));

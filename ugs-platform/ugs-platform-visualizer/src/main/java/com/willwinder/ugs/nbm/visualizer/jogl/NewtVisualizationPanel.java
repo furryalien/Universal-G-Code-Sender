@@ -45,8 +45,6 @@ import java.awt.Component;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
@@ -57,7 +55,6 @@ import java.util.prefs.Preferences;
  * @author Joacim Breiler
  */
 public class NewtVisualizationPanel extends JPanel {
-    private static final ScheduledExecutorService UPDATE_SIZE_SCHEDULER = Executors.newSingleThreadScheduledExecutor();
     private static final Logger LOGGER = Logger.getLogger(NewtVisualizationPanel.class.getName());
     private final transient BackendAPI backend;
     private NewtCanvasAWT panel;
@@ -152,12 +149,7 @@ public class NewtVisualizationPanel extends JPanel {
         ThreadHelper.invokeLater(() -> {
             glWindow.addMouseListener(new NewtMouseListenerAdapter(p, this.rih, this.rih, this.rih));
             glWindow.addKeyListener(new NewtKeyboardListenerAdapter(p, this.rih));
-            glWindow.addWindowListener(new com.jogamp.newt.event.WindowAdapter() {
-                @Override
-                public void windowResized(final com.jogamp.newt.event.WindowEvent e) {
-                    resize();
-                }
-            });
+            // Note: No windowResized listener needed - NewtCanvasAWT handles size sync automatically
         }, 500);
         return p;
     }
@@ -165,15 +157,8 @@ public class NewtVisualizationPanel extends JPanel {
     @Override
     public void setBounds(int x, int y, int width, int height) {
         super.setBounds(x, y, width, height);
-        resize();
-    }
-
-    private void resize() {
-        UPDATE_SIZE_SCHEDULER.execute(() -> {
-            if (glWindow.isVisible()) {
-                glWindow.setPosition(0, 0);
-                glWindow.setSize(getWidth(), getHeight());
-            }
-        });
+        // Note: Do NOT manually call glWindow.setSize() or setPosition()
+        // The NewtCanvasAWT automatically handles size synchronization with the GLWindow
+        // Manual calls can cause native crashes due to threading issues with OpenGL contexts
     }
 }

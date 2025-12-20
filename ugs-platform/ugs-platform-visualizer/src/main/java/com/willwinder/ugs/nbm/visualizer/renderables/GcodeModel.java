@@ -77,6 +77,7 @@ public class GcodeModel extends Renderable implements UGSEventListener {
     private int currentCommandNumber = 0;
     // OpenGL Object Buffer Variables
     private int numberOfVertices = -1;
+    private int actualVertexCount = 0; // Actual number of valid vertices in arrays
     private float[] lineVertexData = null;
     private byte[] lineColorData = null;
     private FloatBuffer lineVertexBuffer = null;
@@ -177,7 +178,8 @@ public class GcodeModel extends Renderable implements UGSEventListener {
             gl.glLineWidth(1.0f);
             gl.glVertexPointer(3, GL.GL_FLOAT, 0, lineVertexBuffer);
             gl.glColorPointer(4, GL.GL_UNSIGNED_BYTE, 0, lineColorBuffer);
-            gl.glDrawArrays(GL.GL_LINES, 0, numberOfVertices);
+            // Use actualVertexCount to prevent rendering uninitialized data
+            gl.glDrawArrays(GL.GL_LINES, 0, actualVertexCount > 0 ? actualVertexCount : numberOfVertices);
             gl.glDisableClientState(GL_COLOR_ARRAY);
             gl.glDisableClientState(GL_VERTEX_ARRAY);
         }
@@ -272,6 +274,13 @@ public class GcodeModel extends Renderable implements UGSEventListener {
         try (IGcodeStreamReader gsr = new GcodeStreamReader(new File(gcodeFile), new DefaultCommandCreator())) {
             return gcvp.toObjFromReader(gsr, ARC_SEGMENT_LENGTH, VisualizerOptions.getDoubleOption(VisualizerOptions.VISUALIZER_OPTION_MIN_SEGMENT_LENGTH_MM, 0));
         } catch (GcodeStreamReader.NotGcodeStreamFile e) {
+            // File is not in preprocessed format, read as plain text
+            logger.log(Level.INFO, "File is not a preprocessed GcodeStream, loading as plain text: {0}", gcodeFile);
+            List<String> linesInFile = VisualizerUtils.readFiletoArrayList(this.gcodeFile);
+            return gcvp.toObjRedux(linesInFile, ARC_SEGMENT_LENGTH, VisualizerOptions.getDoubleOption(VisualizerOptions.VISUALIZER_OPTION_MIN_SEGMENT_LENGTH_MM, 0));
+        } catch (IOException e) {
+            // IOException (including corrupt data) - try fallback to plain text
+            logger.log(Level.WARNING, "Error reading preprocessed file (" + gcodeFile + "), falling back to plain text: " + e.getMessage());
             List<String> linesInFile = VisualizerUtils.readFiletoArrayList(this.gcodeFile);
             return gcvp.toObjRedux(linesInFile, ARC_SEGMENT_LENGTH, VisualizerOptions.getDoubleOption(VisualizerOptions.VISUALIZER_OPTION_MIN_SEGMENT_LENGTH_MM, 0));
         }
@@ -283,14 +292,23 @@ public class GcodeModel extends Renderable implements UGSEventListener {
      * reducing memory overhead and improving cache locality.
      */
     private void updateVertexBuffers() {
-        if (this.isDrawable) {
+        if (this.isDrawable && lineVertexData != null && lineColorData != null && gcodeLineList != null) {
             int vertIndex = 0;
             int colorIndex = 0;
             // Reuse color array to avoid allocations in loop
             byte[] c = new byte[4];
             Position workPosition = backend.getWorkPosition();
+            
+            // Calculate maximum segments we can process based on allocated array sizes
+            // to prevent ArrayIndexOutOfBoundsException if list size changed
+            int maxSegments = Math.min(
+                gcodeLineList.size(),
+                Math.min(lineVertexData.length / 6, lineColorData.length / 8)
+            );
+            
             // Process each line segment and populate compact arrays
-            for (LineSegment ls : gcodeLineList) {
+            for (int i = 0; i < maxSegments; i++) {
+                LineSegment ls = gcodeLineList.get(i);
                 Color color = colorizer.getColor(ls, this.currentCommandNumber);
 
                 Position p1 = addMissingCoordinateFromWorkPosition(ls.getStart(), workPosition);
@@ -324,6 +342,8 @@ public class GcodeModel extends Renderable implements UGSEventListener {
                 lineVertexData[vertIndex++] = (float) p2.z;
             }
 
+            // Track actual number of vertices written (2 per segment)
+            this.actualVertexCount = maxSegments * 2;
             this.colorArrayDirty = true;
             this.vertexArrayDirty = true;
         }
@@ -351,19 +371,27 @@ public class GcodeModel extends Renderable implements UGSEventListener {
      * Initialize or update open gl geometry array in native buffer objects.
      */
     private void updateGLGeometryArray() {
+        if (lineVertexData == null || actualVertexCount <= 0) {
+            return;
+        }
+        
+        // Calculate actual data size (3 floats per vertex)
+        int dataSize = actualVertexCount * 3;
+        
         // Reset buffer and set to null of new geometry doesn't fit.
         if (lineVertexBuffer != null) {
             ((Buffer) lineVertexBuffer).clear();
-            if (lineVertexBuffer.remaining() < lineVertexData.length) {
+            if (lineVertexBuffer.remaining() < dataSize) {
                 lineVertexBuffer = null;
             }
         }
 
         if (lineVertexBuffer == null) {
-            lineVertexBuffer = Buffers.newDirectFloatBuffer(lineVertexData.length);
+            lineVertexBuffer = Buffers.newDirectFloatBuffer(dataSize);
         }
 
-        lineVertexBuffer.put(lineVertexData);
+        // Only put valid data into buffer
+        lineVertexBuffer.put(lineVertexData, 0, dataSize);
         ((Buffer) lineVertexBuffer).flip();
     }
 
@@ -371,23 +399,28 @@ public class GcodeModel extends Renderable implements UGSEventListener {
      * Initialize or update open gl color array in native buffer objects.
      */
     private void updateGLColorArray() {
+        if (lineColorData == null || actualVertexCount <= 0) {
+            return;
+        }
+        
+        // Calculate actual data size (4 bytes per vertex: RGBA)
+        int dataSize = actualVertexCount * 4;
+        
         // Reset buffer and set to null of new colors don't fit.
         if (lineColorBuffer != null) {
             ((Buffer) lineColorBuffer).clear();
 
-            if (lineColorBuffer.remaining() < lineColorData.length) {
+            if (lineColorBuffer.remaining() < dataSize) {
                 lineColorBuffer = null;
             }
         }
 
         if (lineColorBuffer == null) {
-            if (lineColorData == null) {
-                updateVertexBuffers();
-            }
-            lineColorBuffer = Buffers.newDirectByteBuffer(this.lineColorData.length);
+            lineColorBuffer = Buffers.newDirectByteBuffer(dataSize);
         }
 
-        lineColorBuffer.put(lineColorData);
+        // Only put valid data into buffer
+        lineColorBuffer.put(lineColorData, 0, dataSize);
         ((Buffer) lineColorBuffer).flip();
 
     }

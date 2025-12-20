@@ -27,6 +27,7 @@ import com.willwinder.universalgcodesender.model.UGSEvent;
 public class FileStateEvent implements UGSEvent {
     private final FileState fileState;
     private final int progressPercent;
+    private final long rowCount;
 
     /**
      * Create a file state event
@@ -38,7 +39,7 @@ public class FileStateEvent implements UGSEvent {
      * @param state the new file state.
      */
     public FileStateEvent(FileState state) {
-        this(state, 0);
+        this(state, 0, 0);
     }
 
     /**
@@ -48,8 +49,20 @@ public class FileStateEvent implements UGSEvent {
      * @param progressPercent the progress percentage (0-100) for FILE_LOADING_PROGRESS
      */
     public FileStateEvent(FileState state, int progressPercent) {
+        this(state, progressPercent, 0);
+    }
+
+    /**
+     * Create a file state event with progress and row count information
+     *
+     * @param state the new file state
+     * @param progressPercent the progress percentage (0-100) for FILE_LOADING_PROGRESS
+     * @param rowCount the number of rows processed so far
+     */
+    public FileStateEvent(FileState state, int progressPercent, long rowCount) {
         this.fileState = state;
         this.progressPercent = Math.max(0, Math.min(100, progressPercent));
+        this.rowCount = rowCount;
     }
 
     public FileState getFileState() {
@@ -62,5 +75,13 @@ public class FileStateEvent implements UGSEvent {
      */
     public int getProgressPercent() {
         return progressPercent;
+    }
+
+    /**
+     * Get the number of rows processed so far
+     * Only meaningful for FILE_LOADING_PROGRESS events
+     */
+    public long getRowCount() {
+        return rowCount;
     }
 }

@@ -177,31 +177,37 @@ public class GcodeViewParse {
         // Save the state
         Position start = new Position(Double.NaN, Double.NaN, Double.NaN, gp.getCurrentState().getUnits());
 
+        int lineNumber = 0;
         for (String s : gcode) {
-            List<String> commands = gp.preprocessCommand(s, gp.getCurrentState());
-            for (String command : commands) {
-                List<GcodeMeta> points = gp.addCommand(command);
-                for (GcodeMeta meta : points) {
-                    if (meta.point != null) {
-                        VisualizerUtils.addLinesFromPointSegment(start, meta.point, arcSegmentLength, lines);
+            lineNumber++;
+            try {
+                List<String> commands = gp.preprocessCommand(s, gp.getCurrentState());
+                for (String command : commands) {
+                    List<GcodeMeta> points = gp.addCommand(command);
+                    for (GcodeMeta meta : points) {
+                        if (meta.point != null) {
+                            VisualizerUtils.addLinesFromPointSegment(start, meta.point, arcSegmentLength, lines);
 
-                        // if the last set point is in a different or unknown unit, crate a new point-instance with the correct unit set
-                        if (start.getUnits() != UnitUtils.Units.MM && gp.getCurrentState().isMetric) {
-                            start = new Position(
-                                    meta.point.point().x,
-                                    meta.point.point().y,
-                                    meta.point.point().z,
-                                    meta.point.point().a,
-                                    meta.point.point().b,
-                                    meta.point.point().c,
-                                    gp.getCurrentState().isMetric ? UnitUtils.Units.MM : UnitUtils.Units.INCH
-                            );
-                        } else {
-                            // ...otherwise recycle the old instance and just update the x,y,z coords
-                            start.set(meta.point.point());
+                            // if the last set point is in a different or unknown unit, crate a new point-instance with the correct unit set
+                            if (start.getUnits() != UnitUtils.Units.MM && gp.getCurrentState().isMetric) {
+                                start = new Position(
+                                        meta.point.point().x,
+                                        meta.point.point().y,
+                                        meta.point.point().z,
+                                        meta.point.point().a,
+                                        meta.point.point().b,
+                                        meta.point.point().c,
+                                        gp.getCurrentState().isMetric ? UnitUtils.Units.MM : UnitUtils.Units.INCH
+                                );
+                            } else {
+                                // ...otherwise recycle the old instance and just update the x,y,z coords
+                                start.set(meta.point.point());
+                            }
                         }
                     }
                 }
+            } catch (GcodeParserException e) {
+                throw new GcodeParserException("Error at line " + lineNumber + ": " + e.getMessage(), e);
             }
         }
 
