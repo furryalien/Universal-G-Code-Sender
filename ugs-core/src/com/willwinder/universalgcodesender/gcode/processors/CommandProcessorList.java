@@ -32,7 +32,8 @@ public class CommandProcessorList implements CommandProcessor, Iterable<CommandP
      */
     @Override
     public List<String> processCommand(String command, final GcodeState initialState) throws GcodeParserException {
-        List<String> ret = new ArrayList<>();
+        // Pattern 3: Pre-allocate capacity - typically 1-10 commands after arc expansion
+        List<String> ret = new ArrayList<>(10);
         ret.add(command);
         GcodeState tempState;
         for (CommandProcessor p : commandProcessors) {

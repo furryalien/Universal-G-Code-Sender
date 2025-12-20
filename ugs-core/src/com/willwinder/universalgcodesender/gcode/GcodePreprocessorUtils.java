@@ -195,7 +195,8 @@ public class GcodePreprocessorUtils {
     }
 
     static public List<String> parseCodes(List<String> args, char code) {
-        List<String> l = new ArrayList<>();
+        // Pattern 3: Pre-allocate capacity - typically 0-2 codes per type
+        List<String> l = new ArrayList<>(args.size());
         char address = Character.toUpperCase(code);
 
         for (String s : args) {
@@ -362,7 +363,8 @@ public class GcodePreprocessorUtils {
             return Collections.singletonList(command);
         }
 
-        List<String> l = new ArrayList<>();
+        // Pattern 3: Pre-allocate capacity - typically 3-10 tokens per gcode command
+        List<String> l = new ArrayList<>(8);
         boolean readNumeric = false;
         boolean readLineComment = false;
         int blockCommentDepth = 0;
@@ -577,7 +579,8 @@ public class GcodePreprocessorUtils {
         Preconditions.checkArgument(numPoints > 0, "Arcs must have at least 1 segment.");
 
         Position nextPoint = new Position(p1);
-        List<Position> segments = new ArrayList<>();
+        // Pattern 3: Pre-allocate exact capacity - numPoints is known
+        List<Position> segments = new ArrayList<>(numPoints);
         double angle;
 
         // Calculate radius if necessary.

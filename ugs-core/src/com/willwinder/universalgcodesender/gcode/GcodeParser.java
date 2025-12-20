@@ -143,7 +143,8 @@ public class GcodeParser implements IGcodeParser {
     @Override
     public List<GcodeMeta> addCommand(String command, int line) throws GcodeParserException {
         statsProcessor.processCommand(command, state);
-        List<GcodeMeta> results = new ArrayList<>();
+        // Pattern 3: Pre-allocate capacity - typically 1-3 results per command
+        List<GcodeMeta> results = new ArrayList<>(3);
         // Add command get meta doesn't update the state, so we need to do that
         // manually.
         Collection<GcodeMeta> metaObjects = GcodeParserUtils.processCommand(command, line, state, true);
