@@ -183,27 +183,29 @@ public class Gcode {
         addXYLine(lines, "G0", xmin, ymin);
     }
     
-    private void addGLine (List<String> lines, String command, String comment)               { lines.add(formatLine(command, null, null, null, null, null, null, comment)); }
-    private void addPLine (List<String> lines, String command, Integer p, String comment)    { lines.add(formatLine(command, null, null, null, null,    p, null, comment)); }
-    private void addSLine (List<String> lines, String command, Double s, String comment)     { lines.add(formatLine(command, null, null, null,    s, null, null, comment)); }
-    private void addZLine (List<String> lines, String command, Double z)                     { lines.add(formatLine(command, null, null,    z, null, null, null,    null)); }
-    private void addZLine (List<String> lines, String command, Double z, Double f)           { lines.add(formatLine(command, null, null,    z, null, null,    f,    null)); }
-    private void addXYLine(List<String> lines, String command, Double x, Double y)           { lines.add(formatLine(command,    x,    y, null, null, null, null,    null)); }
-    private void addXYLine(List<String> lines, String command, Double x, Double y, Double f) { lines.add(formatLine(command,    x,    y, null, null, null,    f,    null)); }
+    private void addGLine (List<String> lines, String command, String comment)               { lines.add(gLine(command, null, null, null, null, null, null, comment)); }
+    private void addPLine (List<String> lines, String command, Integer p, String comment)    { lines.add(gLine(command, null, null, null, null,    p, null, comment)); }
+    private void addSLine (List<String> lines, String command, Double s, String comment)     { lines.add(gLine(command, null, null, null,    s, null, null, comment)); }
+    private void addZLine (List<String> lines, String command, Double z)                     { lines.add(gLine(command, null, null,    z, null, null, null,    null)); }
+    private void addZLine (List<String> lines, String command, Double z, Double f)           { lines.add(gLine(command, null, null,    z, null, null,    f,    null)); }
+    private void addXYLine(List<String> lines, String command, Double x, Double y)           { lines.add(gLine(command,    x,    y, null, null, null, null,    null)); }
+    private void addXYLine(List<String> lines, String command, Double x, Double y, Double f) { lines.add(gLine(command,    x,    y, null, null, null,    f,    null)); }
 
-    private String formatLine(String command, Double x, Double y, Double z, Double s, Integer p, Double f, String comment) {
-        String out = command;
-        if (x != null) out += String.format(Locale.US, " X%.6f", prefConv(x));
-        if (y != null) out += String.format(Locale.US, " Y%.6f", prefConv(y));
-        if (z != null) out += String.format(Locale.US, " Z%.6f", prefConv(z));
-        if (s != null) out += String.format(Locale.US, " S%.0f", s);
-        if (p != null) out += String.format(Locale.US, " P%d", p);
-        if (f != null) out += String.format(Locale.US, " F%.0f", prefConv(f));
+    private String gLine(String command, Double x, Double y, Double z, Double s, Integer p, Double f, String comment) {
+        // Pattern 4: Use StringBuilder for string building (estimated 80 chars)
+        StringBuilder out = new StringBuilder(80);
+        out.append(command);
+        if (x != null) out.append(String.format(Locale.US, " X%.6f", prefConv(x)));
+        if (y != null) out.append(String.format(Locale.US, " Y%.6f", prefConv(y)));
+        if (z != null) out.append(String.format(Locale.US, " Z%.6f", prefConv(z)));
+        if (s != null) out.append(String.format(Locale.US, " S%.0f", s));
+        if (p != null) out.append(String.format(Locale.US, " P%d", p));
+        if (f != null) out.append(String.format(Locale.US, " F%.0f", prefConv(f)));
         if (comment != null) {
             int pad = COMMENT_POSITION - out.length();
-            if (pad > 0) out += " ".repeat(pad);
-            out += " ; " + comment;
+            if (pad > 0) out.append(" ".repeat(pad));
+            out.append(" ; ").append(comment);
         }
-        return out;
+        return out.toString();
     }
 }

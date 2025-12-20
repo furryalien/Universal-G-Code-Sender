@@ -75,14 +75,17 @@ public class RunFromProcessor implements CommandProcessor {
             moveToClearanceHeight = "G0Z" + clearanceHeight;
         }
 
-        String moveToXY = "G0";
+        // Pattern 4: Use StringBuilder for string building
+        StringBuilder moveToXYBuilder = new StringBuilder(20); // Estimated capacity: "G0" + "X123.456" + "Y123.456"
+        moveToXYBuilder.append("G0");
         if(!Double.isNaN(pos.x)) {
-            moveToXY += "X" + pos.x;
+            moveToXYBuilder.append("X").append(pos.x);
         }
 
         if(!Double.isNaN(pos.y)) {
-            moveToXY += "Y" + pos.y;
+            moveToXYBuilder.append("Y").append(pos.y);
         }
+        String moveToXY = moveToXYBuilder.toString();
 
         String plunge = "";
         if (!Double.isNaN(pos.z)) {

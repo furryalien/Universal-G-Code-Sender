@@ -71,7 +71,10 @@ public class TextFieldUnitFormatter extends JFormattedTextField.AbstractFormatte
 
         String result = Utils.formatter.format(MathUtils.round(value, numberOfDecimals));
         if (showAbbreviation) {
-            result += " " + unit.getAbbreviation();
+            // Pattern 4: Use StringBuilder for string concatenation
+            StringBuilder sb = new StringBuilder(result.length() + 10);
+            sb.append(result).append(" ").append(unit.getAbbreviation());
+            result = sb.toString();
         }
         return result;
     }
