@@ -180,7 +180,19 @@ public final class ProbeTopComponent extends TopComponent implements UGSEventLis
 
     @Override
     public void componentClosed() {
-        controlChangeListener();
+        try {
+            controlChangeListener();
+        } finally {
+            // Pattern 7: Remove listener to prevent memory leak
+            // Use try-catch to prevent exceptions from disrupting component lifecycle
+            if (backend != null) {
+                try {
+                    backend.removeUGSEventListener(this);
+                } catch (Exception e) {
+                    // Listener may already be removed, ignore
+                }
+            }
+        }
     }
 
     @Override

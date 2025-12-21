@@ -98,6 +98,21 @@ public final class SurfacerTopComponent extends TopComponent implements UGSEvent
             updateControls();
         }
     }
+
+    /**
+     * Pattern 7: Remove listener when component is closed to prevent memory leak.
+     */
+    @Override
+    public void componentClosed() {
+        // Use try-catch to prevent exceptions from disrupting component lifecycle
+        if (backend != null) {
+            try {
+                backend.removeUGSEventListener(this);
+            } catch (Exception e) {
+                // Listener may already be removed, ignore
+            }
+        }
+    }
     
     private double mmToUnits(double mmvalue) { return (units == TextFieldUnit.MM) ? mmvalue : mmvalue / 25.4; }
     private double unitsToMM(double value) { return (units == TextFieldUnit.MM) ? value : value * 25.4; }

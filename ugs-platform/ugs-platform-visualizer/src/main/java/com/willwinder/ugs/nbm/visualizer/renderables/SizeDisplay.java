@@ -222,4 +222,19 @@ public class SizeDisplay extends Renderable implements UGSEventListener {
             setUnits(backend.getSettings().getPreferredUnits());
         }
     }
+
+    /**
+     * Pattern 7: Cleanup listener registration to prevent memory leaks.
+     * Call this method when the display is no longer needed.
+     * This method is idempotent and thread-safe.
+     */
+    public synchronized void dispose() {
+        if (backend != null) {
+            try {
+                backend.removeUGSEventListener(this);
+            } catch (Exception e) {
+                // Listener may already be removed, ignore
+            }
+        }
+    }
 }
