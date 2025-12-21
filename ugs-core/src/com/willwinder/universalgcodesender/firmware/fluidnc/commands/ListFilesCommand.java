@@ -22,6 +22,7 @@ import com.willwinder.universalgcodesender.model.File;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ListFilesCommand extends SystemCommand {
@@ -30,9 +31,19 @@ public class ListFilesCommand extends SystemCommand {
         super("$LocalFS/List");
     }
 
+    /**
+     * Returns an unmodifiable list of file paths.
+     * 
+     * @return unmodifiable list of file paths, never null
+     */
     public List<String> getFileList() {
         List<String> files = new ArrayList<>();
-        for (String line : StringUtils.split(getResponse(), "\n")) {
+        String response = getResponse();
+        if (response == null) {
+            return Collections.emptyList();
+        }
+        
+        for (String line : StringUtils.split(response, "\n")) {
             if (line.startsWith("[FILE:")) {
                 String filename = StringUtils.substringBetween(line, "[FILE:", "|").trim();
                 if (!filename.equals(".")) {
@@ -40,12 +51,22 @@ public class ListFilesCommand extends SystemCommand {
                 }
             }
         }
-        return files;
+        return Collections.unmodifiableList(files);
     }
 
+    /**
+     * Returns an unmodifiable list of file objects with metadata.
+     * 
+     * @return unmodifiable list of files, never null
+     */
     public List<File> getFiles() {
         List<File> files = new ArrayList<>();
-        for (String line : StringUtils.split(getResponse(), "\n")) {
+        String response = getResponse();
+        if (response == null) {
+            return Collections.emptyList();
+        }
+        
+        for (String line : StringUtils.split(response, "\n")) {
             if (line.startsWith("[FILE:")) {
                 String filename = StringUtils.substringBetween(line, "[FILE:", "|").trim();
                 String size = StringUtils.substringBetween(line, "SIZE:", "]");
@@ -56,6 +77,6 @@ public class ListFilesCommand extends SystemCommand {
                 }
             }
         }
-        return files;
+        return Collections.unmodifiableList(files);
     }
 }

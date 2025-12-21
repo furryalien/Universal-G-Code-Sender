@@ -36,23 +36,38 @@ public class C2dFile {
     @SerializedName("CIRCLE_OBJECTS")
     private List<C2dCircleObject> circleObjects;
 
+    /**
+     * Returns an unmodifiable view of circle objects in the design.
+     * 
+     * @return unmodifiable list of circle objects, never null
+     */
     public List<C2dCircleObject> getCircleObjects() {
         if (circleObjects != null) {
-            return circleObjects;
+            return Collections.unmodifiableList(circleObjects);
         }
         return Collections.emptyList();
     }
 
+    /**
+     * Returns an unmodifiable view of rectangle objects in the design.
+     * 
+     * @return unmodifiable list of rectangle objects, never null
+     */
     public List<C2dRectangleObject> getRectangleObjects() {
         if (rectangleObjects != null) {
-            return rectangleObjects;
+            return Collections.unmodifiableList(rectangleObjects);
         }
         return Collections.emptyList();
     }
 
+    /**
+     * Returns an unmodifiable view of curve objects in the design.
+     * 
+     * @return unmodifiable list of curve objects, never null
+     */
     public List<C2dCurveObject> getCurveObjects() {
         if (curveObjects != null) {
-            return curveObjects;
+            return Collections.unmodifiableList(curveObjects);
         }
         return Collections.emptyList();
     }

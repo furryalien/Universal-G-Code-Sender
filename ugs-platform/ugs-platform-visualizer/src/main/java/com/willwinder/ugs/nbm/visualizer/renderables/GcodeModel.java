@@ -124,8 +124,13 @@ public class GcodeModel extends Renderable implements UGSEventListener {
         vertexBufferDirty = true;
     }
 
+    /**
+     * Returns an unmodifiable view of the line segment list.
+     * 
+     * @return unmodifiable view of line segments, never null
+     */
     public List<LineSegment> getLineList() {
-        return this.pointList != null ? this.pointList : Collections.emptyList();
+        return this.pointList != null ? Collections.unmodifiableList(this.pointList) : Collections.emptyList();
     }
 
     @Override

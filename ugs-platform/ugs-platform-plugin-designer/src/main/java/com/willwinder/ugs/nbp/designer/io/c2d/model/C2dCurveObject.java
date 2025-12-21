@@ -46,8 +46,13 @@ public class C2dCurveObject {
         return pointType;
     }
 
+    /**
+     * Returns an unmodifiable view of the curve points.
+     * 
+     * @return unmodifiable list of points, may be null
+     */
     public List<Double[]> getPoints() {
-        return points;
+        return points != null ? Collections.unmodifiableList(points) : null;
     }
 
     public Double[] getPosition() {
@@ -57,21 +62,31 @@ public class C2dCurveObject {
         return position;
     }
 
+    /**
+     * Returns an unmodifiable view of the first control points.
+     * 
+     * @return unmodifiable list of control points, never null
+     */
     public List<Double[]> getControlPoints1() {
         if (cp1 != null) {
-            return cp1;
+            return Collections.unmodifiableList(cp1);
         } else if (controlPoints1 != null) {
-            return controlPoints1;
+            return Collections.unmodifiableList(controlPoints1);
         }
 
         return Collections.emptyList();
     }
 
+    /**
+     * Returns an unmodifiable view of the second control points.
+     * 
+     * @return unmodifiable list of control points, never null
+     */
     public List<Double[]> getControlPoints2() {
         if (cp2 != null) {
-            return cp2;
+            return Collections.unmodifiableList(cp2);
         } else if (controlPoints2 != null) {
-            return controlPoints2;
+            return Collections.unmodifiableList(controlPoints2);
         }
 
         return Collections.emptyList();

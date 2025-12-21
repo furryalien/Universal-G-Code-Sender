@@ -69,14 +69,24 @@ public class FirmwareUtils {
         initialize();
     }
 
+    /**
+     * Returns an unmodifiable view of available firmware configuration files.
+     * 
+     * @return unmodifiable map of firmware configurations, never null
+     */
     public static Map<String, ConfigTuple> getConfigFiles() {
-        return configFiles;
+        return Collections.unmodifiableMap(configFiles);
     }
 
+    /**
+     * Returns a sorted, unmodifiable list of available firmware names.
+     * 
+     * @return unmodifiable list of firmware names, never null
+     */
     public static List<String> getFirmwareList() {
         List<String> firmwares = new ArrayList<>(configFiles.keySet());
         firmwares.sort(StringUtils::compareIgnoreCase);
-        return firmwares;
+        return Collections.unmodifiableList(firmwares);
     }
 
     /**
