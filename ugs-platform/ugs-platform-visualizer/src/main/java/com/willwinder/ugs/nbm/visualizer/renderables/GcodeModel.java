@@ -75,6 +75,8 @@ public class GcodeModel extends Renderable implements UGSEventListener {
     private List<LineSegment> gcodeLineList; //An ArrayList of linesegments composing the model
     private List<LineSegment> pointList; //An ArrayList of linesegments composing the model (kept for API compatibility)
     private int currentCommandNumber = 0;
+    // Pattern 2.1: Support for chunked/partial rendering
+    private RenderRange renderRange = RenderRange.ALL; //By default, render all segments
     // OpenGL Object Buffer Variables
     private int numberOfVertices = -1;
     private int actualVertexCount = 0; // Actual number of valid vertices in arrays
@@ -131,6 +133,36 @@ public class GcodeModel extends Renderable implements UGSEventListener {
      */
     public List<LineSegment> getLineList() {
         return this.pointList != null ? Collections.unmodifiableList(this.pointList) : Collections.emptyList();
+    }
+
+    /**
+     * Pattern 2.1: Sets the render range for chunked/partial rendering.
+     * This allows loading and rendering only a portion of large G-code files,
+     * significantly reducing memory usage.
+     * 
+     * @param range The range of line segments to render (null resets to ALL)
+     */
+    public void setRenderRange(RenderRange range) {
+        this.renderRange = (range == null) ? RenderRange.ALL : range;
+        this.vertexBufferDirty = true;
+    }
+    
+    /**
+     * Pattern 2.1: Gets the current render range.
+     * 
+     * @return The current render range, never null
+     */
+    public RenderRange getRenderRange() {
+        return this.renderRange;
+    }
+    
+    /**
+     * Pattern 2.1: Gets the total number of line segments in the model.
+     * 
+     * @return Total segment count, or 0 if no model loaded
+     */
+    public int getTotalSegmentCount() {
+        return (gcodeLineList == null) ? 0 : gcodeLineList.size();
     }
 
     @Override
@@ -295,6 +327,7 @@ public class GcodeModel extends Renderable implements UGSEventListener {
      * Convert the gcodeLineList into vertex and color arrays.
      * Pattern 2 Optimization: Uses primitive arrays for compact representation,
      * reducing memory overhead and improving cache locality.
+     * Pattern 2.1: Respects renderRange for chunked rendering.
      */
     private void updateVertexBuffers() {
         if (this.isDrawable && lineVertexData != null && lineColorData != null && gcodeLineList != null) {
@@ -304,16 +337,22 @@ public class GcodeModel extends Renderable implements UGSEventListener {
             byte[] c = new byte[4];
             Position workPosition = backend.getWorkPosition();
             
+            // Pattern 2.1: Apply render range constraints
+            RenderRange clampedRange = renderRange.clamp(gcodeLineList.size());
+            int startSegment = clampedRange.getStart();
+            int endSegment = clampedRange.getEnd();
+            
             // Calculate maximum segments we can process based on allocated array sizes
             // to prevent ArrayIndexOutOfBoundsException if list size changed
+            int rangeSize = endSegment - startSegment;
             int maxSegments = Math.min(
-                gcodeLineList.size(),
+                rangeSize,
                 Math.min(lineVertexData.length / 6, lineColorData.length / 8)
             );
             
-            // Process each line segment and populate compact arrays
+            // Process each line segment within the range and populate compact arrays
             for (int i = 0; i < maxSegments; i++) {
-                LineSegment ls = gcodeLineList.get(i);
+                LineSegment ls = gcodeLineList.get(startSegment + i);
                 Color color = colorizer.getColor(ls, this.currentCommandNumber);
 
                 Position p1 = addMissingCoordinateFromWorkPosition(ls.getStart(), workPosition);
