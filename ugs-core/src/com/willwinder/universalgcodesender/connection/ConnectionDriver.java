@@ -29,7 +29,8 @@ import java.util.Map;
 public enum ConnectionDriver {
     JSERIALCOMM("Serial", "jserialcomm://"),
     TCP("TCP", "tcp://"),
-    WS("WebSocket", "ws://");
+    WS("WebSocket", "ws://"),
+    LOOPBACK("Loopback (Testing)", "loopback://");
 
     private final String prettyName;
     private final String protocol;

@@ -69,6 +69,7 @@ public class ConnectionFactory {
             case JSERIALCOMM -> Optional.of(new JSerialCommConnection());
             case TCP -> Optional.of(new TCPConnection());
             case WS -> Optional.of(new WSConnection());
+            case LOOPBACK -> Optional.of(new LoopbackConnection());
             default -> Optional.empty();
         };
     }
