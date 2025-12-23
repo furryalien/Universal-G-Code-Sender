@@ -119,19 +119,29 @@ public class GcodeParserUtils {
 
         List<String> fCodes = GcodePreprocessorUtils.parseCodes(args, 'F');
         if (!fCodes.isEmpty()) {
+            // If multiple F-codes on one line, use the last one (most lenient behavior)
+            // This handles malformed G-code files more gracefully
+            if (fCodes.size() > 1) {
+                LOGGER.warning("Line " + line + ": Multiple F-codes detected (" + fCodes + "), using last value: F" + fCodes.get(fCodes.size() - 1));
+            }
             try {
-                state.feedRate = Double.parseDouble(Iterables.getOnlyElement(fCodes));
-            } catch (IllegalArgumentException e) {
-                throw new GcodeParserException("Multiple F-codes on one line.");
+                state.feedRate = Double.parseDouble(fCodes.get(fCodes.size() - 1));
+            } catch (NumberFormatException e) {
+                throw new GcodeParserException("Invalid F-code value: F" + fCodes.get(fCodes.size() - 1));
             }
         }
 
         List<String> sCodes = GcodePreprocessorUtils.parseCodes(args, 'S');
         if (!sCodes.isEmpty()) {
+            // If multiple S-codes on one line, use the last one (most lenient behavior)
+            // This handles malformed G-code files more gracefully
+            if (sCodes.size() > 1) {
+                LOGGER.warning("Line " + line + ": Multiple S-codes detected (" + sCodes + "), using last value: S" + sCodes.get(sCodes.size() - 1));
+            }
             try {
-                state.spindleSpeed = Double.parseDouble(Iterables.getOnlyElement(sCodes));
-            } catch (IllegalArgumentException e) {
-                throw new GcodeParserException("Multiple S-codes on one line.");
+                state.spindleSpeed = Double.parseDouble(sCodes.get(sCodes.size() - 1));
+            } catch (NumberFormatException e) {
+                throw new GcodeParserException("Invalid S-code value: S" + sCodes.get(sCodes.size() - 1));
             }
         }
 

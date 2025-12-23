@@ -133,6 +133,13 @@ public class VisualizerCanvas extends GLCanvas implements GLEventListener, KeyLi
     private boolean colorArrayDirty = false;
     private boolean vertexArrayDirty = false;
     
+    // Cache GL capabilities check for batch rendering (Recommendation #7)
+    private boolean batchRenderingAvailable = false;
+    
+    // Reusable Position objects for rendering (Recommendation #1: eliminate allocations in hot path)
+    private final Position reusableP1 = new Position(0, 0, 0, Units.MM);
+    private final Position reusableP2 = new Position(0, 0, 0, Units.MM);
+    
     private FPSCounter fpsCounter;
     private Overlay overlay;
     private String dimensionsLabel;
@@ -231,6 +238,13 @@ public class VisualizerCanvas extends GLCanvas implements GLEventListener, KeyLi
         gl.glDepthFunc(GL_LEQUAL);  // the type of depth test to do
         gl.glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); // best perspective correction
         gl.glShadeModel(GL_SMOOTH); // blends colors nicely, and smoothes out lighting
+        
+        // Cache batch rendering availability check (Recommendation #7: eliminate per-frame string lookups)
+        this.batchRenderingAvailable = !forceOldStyle
+                && gl.isFunctionAvailable("glGenBuffers")
+                && gl.isFunctionAvailable("glBindBuffer")
+                && gl.isFunctionAvailable("glBufferData")
+                && gl.isFunctionAvailable("glDeleteBuffers");
     }
 
     /**
@@ -373,12 +387,8 @@ public class VisualizerCanvas extends GLCanvas implements GLEventListener, KeyLi
     private void renderModel(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
         
-        // Batch mode if available 
-        if(!forceOldStyle
-                && gl.isFunctionAvailable( "glGenBuffers" )
-                && gl.isFunctionAvailable( "glBindBuffer" )
-                && gl.isFunctionAvailable( "glBufferData" )
-                && gl.isFunctionAvailable( "glDeleteBuffers" ) ) {
+        // Batch mode if available (cached check, Recommendation #7)
+        if(batchRenderingAvailable) {
             
             // Initialize OpenGL arrays if required.
             if (this.colorArrayDirty) {
@@ -558,6 +568,10 @@ public class VisualizerCanvas extends GLCanvas implements GLEventListener, KeyLi
 
                 // Draw it.
                 {
+                    // Recommendation #1 Note: LineSegment.getStart()/getEnd() return references
+                    // to final Position fields, so no allocation occurs here. The real optimization
+                    // opportunity is when integrating CompactLineSegmentStorage (Pattern 2.2) which
+                    // provides zero-allocation array access methods.
                     Position p1 = ls.getStart();
                     Position p2 = ls.getEnd();
                     byte[] c = color.getBytes();

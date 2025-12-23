@@ -70,6 +70,9 @@ public class FPSCounter {
   private int fpsHeight;
   private int fpsOffset;
   
+  // Precomputed constant for FPS calculation (Recommendation #6: micro-optimization)
+  private static final float FPS_CALCULATION_FACTOR = 100.0f * 1000.0f;
+  
   /** Creates a new FPSCounter with the given font size. An OpenGL
       context must be current at the time the constructor is called.
 
@@ -156,7 +159,7 @@ public class FPSCounter {
 
     if (++frameCount >= 100) {
       long endTime = System.currentTimeMillis();
-      float fps = 100.0f / (float) (endTime - startTime) * 1000;
+      float fps = FPS_CALCULATION_FACTOR / (float) (endTime - startTime);
       recomputeFPSSize(fps);
       frameCount = 0;
       startTime = System.currentTimeMillis();

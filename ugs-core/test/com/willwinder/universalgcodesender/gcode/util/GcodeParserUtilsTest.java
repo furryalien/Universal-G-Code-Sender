@@ -44,17 +44,21 @@ public class GcodeParserUtilsTest {
     }
 
     @Test
-    public void duplicateFeedException() {
-        assertThatThrownBy(() -> GcodeParserUtils.processCommand("F1F1", 0, new GcodeState()))
-                .isInstanceOf(GcodeParserException.class)
-                .hasMessage("Multiple F-codes on one line.");
+    public void duplicateFeedRateUsesLastValue() throws Exception {
+        // Changed from throwing exception to using last value (more lenient for malformed files)
+        List<GcodeParser.GcodeMeta> metaList = GcodeParserUtils.processCommand("F1F2", 0, new GcodeState(), true);
+        GcodeParser.GcodeMeta meta = Iterables.getOnlyElement(metaList);
+        // Should use the last F-code value (F2)
+        assertThat(meta.state.feedRate).isEqualTo(2.0);
     }
 
     @Test
-    public void duplicateSpindleException() {
-        assertThatThrownBy(() -> GcodeParserUtils.processCommand("S1S1", 0, new GcodeState()))
-                .isInstanceOf(GcodeParserException.class)
-                .hasMessage("Multiple S-codes on one line.");
+    public void duplicateSpindleUsesLastValue() throws Exception {
+        // Changed from throwing exception to using last value (more lenient for malformed files)
+        List<GcodeParser.GcodeMeta> metaList = GcodeParserUtils.processCommand("S100S200", 0, new GcodeState(), true);
+        GcodeParser.GcodeMeta meta = Iterables.getOnlyElement(metaList);
+        // Should use the last S-code value (S200)
+        assertThat(meta.state.spindleSpeed).isEqualTo(200.0);
     }
 
     @Test
