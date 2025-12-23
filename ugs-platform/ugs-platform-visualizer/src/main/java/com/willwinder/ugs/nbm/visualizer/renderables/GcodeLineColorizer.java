@@ -60,16 +60,40 @@ public class GcodeLineColorizer {
     }
 
     public Color getColor(LineSegment lineSegment, long currentCommandNumber) {
-        if (lineSegment.getLineNumber() < currentCommandNumber) {
+        return getColor(lineSegment.getLineNumber(), 
+                       lineSegment.isZMovement(), 
+                       lineSegment.isArc(), 
+                       lineSegment.isFastTraverse(), 
+                       lineSegment.getFeedRate(), 
+                       lineSegment.getSpindleSpeed(),
+                       currentCommandNumber);
+    }
+
+    /**
+     * Property-based colorization for zero-allocation rendering path.
+     * 
+     * @param lineNumber the line number
+     * @param isZMovement true if this is a Z-axis movement
+     * @param isArc true if this is an arc movement
+     * @param isFastTraverse true if this is a rapid traverse
+     * @param feedRate the feed rate
+     * @param spindleSpeed the spindle speed
+     * @param currentCommandNumber the current command number
+     * @return the color for this segment
+     */
+    public Color getColor(int lineNumber, boolean isZMovement, boolean isArc, 
+                         boolean isFastTraverse, double feedRate, double spindleSpeed,
+                         long currentCommandNumber) {
+        if (lineNumber < currentCommandNumber) {
             return completedColor;
-        } else if (lineSegment.isArc()) {
+        } else if (isArc) {
             return arcColor;
-        } else if (lineSegment.isFastTraverse()) {
+        } else if (isFastTraverse) {
             return rapidColor;
-        } else if (lineSegment.isZMovement()) {
+        } else if (isZMovement) {
             return plungeColor;
         } else {
-            return getFeedColor(lineSegment.getFeedRate(), lineSegment.getSpindleSpeed());
+            return getFeedColor(feedRate, spindleSpeed);
         }
     }
 

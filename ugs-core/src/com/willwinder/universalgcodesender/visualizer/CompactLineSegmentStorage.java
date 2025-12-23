@@ -280,6 +280,20 @@ public class CompactLineSegmentStorage {
     }
     
     /**
+     * Gets the spindle speed for a segment.
+     * 
+     * @param index the segment index
+     * @return the spindle speed
+     * @throws IndexOutOfBoundsException if index is out of range
+     */
+    public double getSpindleSpeed(int index) {
+        if (index < 0 || index >= segmentCount) {
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + segmentCount);
+        }
+        return spindleSpeeds[index];
+    }
+    
+    /**
      * Checks if a segment represents Z-axis movement.
      * 
      * @param index the segment index
