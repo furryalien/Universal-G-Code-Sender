@@ -10,6 +10,24 @@
             </goals>
             <properties>
                 <DskipTests>true</DskipTests>
+                <netbeans.hint.jdkPlatform>JDK_11</netbeans.hint.jdkPlatform>
+                <maven.compiler.source>11</maven.compiler.source>
+                <maven.compiler.target>11</maven.compiler.target>
+            </properties>
+        </action>
+        <action>
+            <actionName>CUSTOM-run-ugs</actionName>
+            <displayName>Run UGS Platform</displayName>
+            <goals>
+                <goal>install</goal>
+                <goal>-pl</goal>
+                <goal>ugs-platform/application</goal>
+                <goal>nbm:cluster-app</goal>
+                <goal>nbm:run-platform</goal>
+            </goals>
+            <properties>
+                <skipTests>true</skipTests>
+                <netbeans.run.params.ide>-J-Dorg.openide.util.RequestProcessor.Item.QUANTUM=2000 -J-Dorg.openide.util.RequestProcessor.checkForOverflow=false</netbeans.run.params.ide>
             </properties>
         </action>
     </actions>

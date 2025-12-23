@@ -59,8 +59,16 @@ public class LoadedFileStatusLineService implements StatusLineElementProvider {
 
     private void onEvent(UGSEvent event) {
         if (event instanceof FileStateEvent fileStateEvent) {
+            // Reset display when starting to load a new file
+            if (fileStateEvent.getFileState() == FileState.FILE_LOADING) {
+                File file = this.backend.getGcodeFile();
+                if (file != null) {
+                    this.label.setText(file.getName() + " - Loading...");
+                    this.panel.setVisible(true);
+                }
+            }
             // Show progress during file loading
-            if (fileStateEvent.getFileState() == FileState.FILE_LOADING_PROGRESS) {
+            else if (fileStateEvent.getFileState() == FileState.FILE_LOADING_PROGRESS) {
                 File file = this.backend.getGcodeFile();
                 if (file != null) {
                     int progress = fileStateEvent.getProgressPercent();

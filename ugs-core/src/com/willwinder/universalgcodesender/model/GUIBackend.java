@@ -62,6 +62,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -92,9 +96,18 @@ public class GUIBackend implements BackendAPI {
     private GcodeStreamReader gcodeStream;
 
     /**
-     * Thread for the currently running file loading task (if any)
+     * ExecutorService for file loading tasks. Using single thread to ensure only one file loads at a time.
      */
-    private Thread currentLoadingThread = null;
+    private final ExecutorService fileLoadingExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "GCode-File-Loader");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /**
+     * Future for the currently running file loading task (if any)
+     */
+    private Future<?> currentLoadingTask = null;
 
     public GUIBackend() {
         this(new UGSEventDispatcher());
@@ -390,13 +403,14 @@ public class GUIBackend implements BackendAPI {
 
     private void processGcodeFile() throws Exception {
         // Cancel any previous loading task
-        if (currentLoadingThread != null && currentLoadingThread.isAlive()) {
-            currentLoadingThread.interrupt();
+        if (currentLoadingTask != null && !currentLoadingTask.isDone()) {
+            currentLoadingTask.cancel(true);
             // Give it a moment to stop
             try {
-                currentLoadingThread.join(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                currentLoadingTask.get(100, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                // Task cancelled or timeout - this is expected
+                logger.log(Level.FINE, "Previous loading task cancelled or timed out", e);
             }
         }
 
@@ -407,7 +421,7 @@ public class GUIBackend implements BackendAPI {
         eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADING));
 
         // Process file asynchronously to avoid blocking UI
-        currentLoadingThread = new Thread(() -> {
+        currentLoadingTask = fileLoadingExecutor.submit(() -> {
             try {
                 initializeProcessedLines(true, fileToProcess, this.gcp);
                 
@@ -422,6 +436,9 @@ public class GUIBackend implements BackendAPI {
                 // Send loaded event with final row count
                 long finalRowCount = gcodeStream != null ? gcodeStream.getNumRows() : 0;
                 eventDispatcher.sendUGSEvent(new FileStateEvent(FileState.FILE_LOADED, 100, finalRowCount));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.log(Level.INFO, "File loading interrupted", e);
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "Error loading gcode file", e);
                 // Send error message to user
@@ -434,9 +451,7 @@ public class GUIBackend implements BackendAPI {
                     logger.log(Level.SEVERE, "Error resetting file state", ex);
                 }
             }
-        }, "GCode-File-Loader");
-        currentLoadingThread.setDaemon(true);
-        currentLoadingThread.start();
+        });
     }
 
     @Override

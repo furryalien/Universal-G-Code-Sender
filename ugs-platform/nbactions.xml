@@ -12,4 +12,21 @@
                 <DskipTests>true</DskipTests>
             </properties>
         </action>
+        <action>
+            <actionName>run</actionName>
+            <packagings>
+                <packaging>pom</packaging>
+            </packagings>
+            <goals>
+                <goal>install</goal>
+                <goal>-pl</goal>
+                <goal>application</goal>
+                <goal>nbm:cluster-app</goal>
+                <goal>nbm:run-platform</goal>
+            </goals>
+            <properties>
+                <skipTests>true</skipTests>
+                <netbeans.run.params.ide>-J-Dorg.openide.util.RequestProcessor.Item.QUANTUM=2000 -J-Dorg.openide.util.RequestProcessor.checkForOverflow=false</netbeans.run.params.ide>
+            </properties>
+        </action>
     </actions>

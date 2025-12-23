@@ -23,6 +23,7 @@
             </goals>
             <properties>
                 <skipTests>true</skipTests>
+                <netbeans.run.params.ide>-J-Dorg.openide.util.RequestProcessor.Item.QUANTUM=2000 -J-Dorg.openide.util.RequestProcessor.checkForOverflow=false</netbeans.run.params.ide>
             </properties>
         </action>
         <action>
@@ -36,7 +37,7 @@
             </goals>
             <properties>
                 <jpda.listen>true</jpda.listen>
-                <netbeans.run.params.debug>-J-agentlib:jdwp=transport=dt_socket,suspend=n,server=n,address=${jpda.address}</netbeans.run.params.debug>
+                <netbeans.run.params.debug>-J-agentlib:jdwp=transport=dt_socket,suspend=n,server=n,address=${jpda.address} -J-Dorg.openide.util.RequestProcessor.Item.QUANTUM=2000 -J-Dorg.openide.util.RequestProcessor.checkForOverflow=false</netbeans.run.params.debug>
                 <skipTests>true</skipTests>
             </properties>
         </action>

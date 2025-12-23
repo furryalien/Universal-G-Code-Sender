@@ -29,6 +29,7 @@ import javax.swing.*;
 import java.awt.event.ActionListener;
 
 import static com.willwinder.universalgcodesender.model.events.FileState.FILE_LOADED;
+import static com.willwinder.universalgcodesender.model.events.FileState.FILE_LOADING;
 import static com.willwinder.universalgcodesender.model.events.FileState.FILE_STREAM_COMPLETE;
 import static com.willwinder.universalgcodesender.model.events.FileState.FILE_UNLOADED;
 
@@ -128,6 +129,9 @@ public class SendStatusLine extends JLabel implements UGSEventListener {
                 setRows();
             } else if (fileStateEvent.getFileState() == FILE_STREAM_COMPLETE) {
                 endSend();
+            } else if (fileStateEvent.getFileState() == FILE_LOADING) {
+                // Clear row count when starting to load a new file
+                setText(NO_FILE_LOADED);
             }
         }
     }
