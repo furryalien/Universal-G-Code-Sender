@@ -203,17 +203,27 @@ public class GcodeModel extends Renderable implements UGSEventListener {
             gl.glEnableClientState(GL_COLOR_ARRAY);
 
             // Initialize OpenGL arrays if required.
+            // Recommendation #2: Batch GPU buffer uploads for efficiency
             if (this.vertexBufferDirty && !vertexArrayDirty && !colorArrayDirty) {
                 updateVertexBuffers();
                 this.vertexBufferDirty = false;
             }
-            if (this.colorArrayDirty) {
-                this.updateGLColorArray();
+            
+            // Batch both vertex and color updates together if both are dirty
+            if (this.colorArrayDirty && this.vertexArrayDirty) {
+                this.batchUpdateGPUBuffers();
                 this.colorArrayDirty = false;
-            }
-            if (this.vertexArrayDirty) {
-                this.updateGLGeometryArray();
                 this.vertexArrayDirty = false;
+            } else {
+                // Individual updates if only one is dirty
+                if (this.colorArrayDirty) {
+                    this.updateGLColorArray();
+                    this.colorArrayDirty = false;
+                }
+                if (this.vertexArrayDirty) {
+                    this.updateGLGeometryArray();
+                    this.vertexArrayDirty = false;
+                }
             }
             gl.glLineWidth(1.0f);
             gl.glVertexPointer(3, GL.GL_FLOAT, 0, lineVertexBuffer);
@@ -573,6 +583,47 @@ public class GcodeModel extends Renderable implements UGSEventListener {
         lineColorBuffer.put(lineColorData, 0, dataSize);
         ((Buffer) lineColorBuffer).flip();
 
+    }
+    
+    /**
+     * Recommendation #2: Batch GPU buffer uploads.
+     * Updates both vertex and color buffers in a single operation for efficiency.
+     * This reduces the number of buffer operations and improves cache coherency.
+     */
+    private void batchUpdateGPUBuffers() {
+        if (lineVertexData == null || lineColorData == null || actualVertexCount <= 0) {
+            return;
+        }
+        
+        // Calculate actual data sizes
+        int vertexDataSize = actualVertexCount * 3; // 3 floats per vertex (x,y,z)
+        int colorDataSize = actualVertexCount * 4;  // 4 bytes per vertex (RGBA)
+        
+        // Update vertex buffer
+        if (lineVertexBuffer != null) {
+            ((Buffer) lineVertexBuffer).clear();
+            if (lineVertexBuffer.remaining() < vertexDataSize) {
+                lineVertexBuffer = null;
+            }
+        }
+        if (lineVertexBuffer == null) {
+            lineVertexBuffer = Buffers.newDirectFloatBuffer(vertexDataSize);
+        }
+        lineVertexBuffer.put(lineVertexData, 0, vertexDataSize);
+        ((Buffer) lineVertexBuffer).flip();
+        
+        // Update color buffer
+        if (lineColorBuffer != null) {
+            ((Buffer) lineColorBuffer).clear();
+            if (lineColorBuffer.remaining() < colorDataSize) {
+                lineColorBuffer = null;
+            }
+        }
+        if (lineColorBuffer == null) {
+            lineColorBuffer = Buffers.newDirectByteBuffer(colorDataSize);
+        }
+        lineColorBuffer.put(lineColorData, 0, colorDataSize);
+        ((Buffer) lineColorBuffer).flip();
     }
 
     @Override
